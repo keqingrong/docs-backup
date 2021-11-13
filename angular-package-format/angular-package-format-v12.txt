@@ -1,0 +1,571 @@
+﻿Angular Package Format (APF) v12.0
+authors: iminar@ & jasonaden@, last update: 2021-04-15, status: implemented
+doc url: https://g.co/ng/apf, edit/comment url: https://goo.gl/NGBfjF 
+previous version archive: v4, v5, v6, v8, v9, v10
+
+
+This document describes the structure and format of the Angular framework packages currently available on npm. This format applies to packages distributing Angular components (like Angular Material) as well as  the core framework packages published under the @angular namespace, such as @angular/core and @angular/forms.
+
+
+The format described here uses a distinct file layout and metadata configuration that enables a package to work seamlessly under most common scenarios where Angular is used, and makes it compatible with the tooling offered by the Angular team and the community itself. For that reason, third-party library developers are also strongly encouraged to follow the same structure.
+
+
+The versioning of the format is aligned with the versioning of Angular itself and we expect the format to evolve in a forward-compatible way to support the needs of the Angular component and tooling ecosystem.
+
+
+Purpose of the package format
+In today’s JavaScript landscape, developers will consume packages in many different ways. For example, some may use SystemJS, others could use Webpack. Still, others might consume packages in Node or maybe in the browser as a UMD bundle or through global variable access.
+
+
+The Angular distribution package supports all of the commonly used development tools and workflows, and adds emphasis on optimizations that result either in smaller application payload size or faster development iteration cycle (build time).
+
+
+________________
+File layout
+This is an abbreviated version of the @angular/core package with explanation of the purpose of various files.
+
+
+node_modules/@angular/core
+
+
+   --- paths part of the public PUBLIC API ---
+│
+├── README.md
+├── package.json
+│   { ...
+│       es2015: ./fesm2015/core.js
+│         main: ./bundles/core.umd.js
+│       module: ./fesm2015/core.js
+│      typings: ./core.d.ts
+│     fesm2015: ./fesm2015/core.js
+│      esm2015: ./esm2015/core.js
+│     ... }
+│
+├── testing
+│   │
+│   └── package.json 
+│       { ...
+│          es2015: ../fesm2015/testing.js
+│            main: ../bundles/core-testing.umd.js
+│          module: ../fesm2015/testing.js
+│         typings: ./testing.d.ts
+│        fesm2015: ../fesm2015/testing.js
+│         esm2015: ../esm2015/testing/testing.js
+│         ... }
+│
+├── bundles
+│   ├── core.umd.js
+│   └── core-testing.umd.js
+
+
+
+  --- paths part of the public PRIVATE API ---
+│
+├── core.d.ts
+├── core.metadata.json
+├── testing
+│   ├── testing.d.ts
+│   └── testing.metadata.json
+│
+├── fesm2015
+│   ├── core.js (ESM/ES2015)
+│   ├── core.js.map
+│   ├── testing.js
+│   └── testing.js.map
+│
+└── esm2015 (deprecated)
+    │
+    │
+    │
+    │
+    │
+    ├── core
+    │   └── ....js
+    ├── testing
+    │   └── ....js
+    ├── core.js (ESM/ES2015)
+    ├── core.js.map
+    ├── testing.js
+    └── testing.js.map
+ 
+	* Package root
+
+
+
+* Readme file used by npmjs web UI
+* Primary package.json for the package. Also represents the primary entry point. This file contains a mapping used by runtimes and tools performing module resolution.
+
+E.g. Node.js will use the `main` field to resolve an import from `@angular/core` to ./bundles/core.umd.js, while Angular CLI will use the `es2015` field to map the same import to ./fesm2015/core.js
+
+
+* Secondary entry point @angular/core/testing that is colocated within the @angular/core package.
+* Secondary entry point package.json. Maps typings and JavaScript files similar to the primary entry package.json
+
+
+
+
+
+
+
+
+
+
+
+   * Directory that contains all bundles (UMD/ES5)
+   * Primary entry point bundle. Filename: $PKGNAME.umd.js
+   * Secondary entry point bundle. Filename "$PKGNAME-$NAME.umd.js"
+
+
+
+
+
+      * Primary entry point: flattened type definitions
+      * Primary entry point: metadata used by AOT compiler
+
+
+      * Secondary entry point: flattened type definitions
+      * Secondary entry point: metadata used by AOT compiler
+
+      * Directory containing fesm2015 files
+      * Primary entry point ESM+ES2015 flat module (fesm)
+      * Source map
+      * Secondary entry point ESM+ES2015 flat module (fesm)
+      * Source map
+
+
+         * esm2015 directory containing distribution with individual unflattened (fine-grained/internal) ES modules.
+
+This distribution is currently available only for experimentation. It is deprecated as of v9, might be removed in the future.
+         * Directory with ES Modules - all paths within this directory are private api.
+         * Similar to "core" directory but core/testing which represents a secondary entry point
+         * Public module that reexports all symbols under core/
+         * Source map (.map files exist next to all .js files)
+         * Public module that reexports all symbols under testing/
+         * Source map
+	
+
+
+
+This package layout allows us to support the following usage-scenarios and environments:
+
+
+
+
+Build / Bundler / Consumer
+	Module Format
+	Primary Entry Point resolves to
+	Secondary Entry Points resolves to
+	Bundlers / Modern Browsers
+	FESM2015
+
+
+(flattened ESM+ES2015)
+	fesm2015/core.js
+	fesm2015/testing.js
+	unused
+	ESM2015
+
+(unflattened ESM+ES2015)
+	esm2015/core.js
+	esm2015/testing/testing.js
+	script tags
+	UMD
+	Requires manual resolution by the developer to: 
+
+
+bundles/core.umd.js
+	Requires manual resolution by the developer to: 
+
+
+bundles/core-testing.umd.js 
+	Node.js
+	UMD
+	bundles/core.umd.js
+	bundles/core-testing.umd.js 
+	TypeScript
+	ESM+d.ts
+	core.d.ts
+	testing/testing.d.ts
+	AOT compilation
+	.metadata.json
+	core.metadata.json
+	testing/testing.metadata.json
+	
+
+
+
+Library File layout
+Libraries should generally use the same layout, but there are characteristics in libraries that are different from the Angular framework.
+
+
+Typically libraries are split at the component or functional level. Let’s take an example such as Angular’s Material project.
+
+
+Angular Material publishes sets of components such as Button (a single component), Tabs (a set of components that work together), etc. The common ground is the NgModule that binds these functional areas together. There is a single NgModule for Button, another for Tabs, and so on.
+
+
+The general rule in the Angular Package Format is to produce a FESM file for the smallest set of logically connected code. For example, the Angular package has a single FESM for @angular/core. When a developer uses the Component symbol from @angular/core they are very likely to also use symbols such as Injectable, Directive, NgModule, etc as well - either directly or indirectly. Therefore all these pieces should be bundled together into a single FESM. For most library cases a single logical group should be grouped together into a single NgModule, and all these files should be bundled together as a single FESM file within the package which represents a single entry point in the npm package.
+
+
+Here is an example of how the Angular Material project would look in this format:
+
+
+
+
+node_modules/@angular/material
+
+
+   --- paths part of the public PUBLIC API ---
+│
+├── README.md
+├── package.json 
+│
+│
+│
+├── bundles
+│   ├── material.umd.js
+│   ├── material-button.umd.js
+│   ├── material-tabs.umd.js
+│   └── material-[component].umd.js
+├── button
+│   └── package.json
+│        { ...
+│       es2015: ../fesm2015/button/index.js
+│      typings: ./index.d.ts
+│         main: ../bundles/material-button.umd.js
+│       module: ../fesm2015/button/index.js
+│     fesm2015: ../fesm2015/button.js
+│      esm2015: ../esm2015/button/index.js
+│          ... }
+└── tabs
+    └── package.json
+         { ...
+        es2015: ../fesm2015/tabs/index.js
+       typings: ./index.d.ts
+          main: ../bundles/material-tabs.umd.js
+        module: ../fesm2015/tabs/index.js
+      fesm2015: ../fesm2015/tabs.js
+       esm2015: ../esm2015/tabs/index.js
+           ... }
+ 
+   --- paths part of the public PRIVATE API ---
+│
+├── button
+│   ├── index.d.ts
+│   └── index.metadata.json
+│
+├── tabs
+│   ├── index.d.ts
+│   └── index.metadata.json
+│
+├── fesm2015
+|   ├── button.js
+|   ├── button.js.map
+|   ├── tabs.js
+|   ├── tabs.js.map
+|   └── ...others
+│
+└── esm2015 (deprecated)
+    ├── button
+    │   ├── ....js
+    └── tabs
+        └── ....js
+	            * Package root
+
+
+
+            * Readme file used by npmjs web UI
+            * Primary package.json used by npm/yarn. Since @angular/material doesn't have any primary entry points, no resolution configuration is present in this file.
+
+            * Directory that contains all bundles (UMD/ES5)
+            * Primary bundle. Filename: $PKGNAME.umd.js
+            * Secondary bundles are prefixed with "$PKGNAME-"
+            * Others...
+
+
+
+
+
+
+
+
+               * Directory containing ESM2015 files
+               * This index re-exports from @angular/material/button, tabs, etc
+               * Secondary entry points are flattened into a single JavaScript file
+
+
+
+
+
+
+
+
+
+
+               * Secondary entry point: flattened type definitions
+               * Secondary entry point: metadata used by AOT compiler
+
+
+
+
+
+
+
+               * Secondary entry point dir (button, tabs, etc)
+               * Type def reference to src directory
+               * Flat Module metadata file
+
+               * Secondary entry point package.json. Maps typings and JavaScript files similar to the primary entry package.json
+
+
+
+
+
+
+
+
+
+               * esm2015 directory containing distribution with individual unflattened (fine-grained/internal) ES modules.
+
+This distribution is currently available only for experimentation. It is deprecated as of v9, might be removed in the future.
+	
+
+
+
+README.md
+
+
+The readme file in the markdown format that is used to display description of a package on npm and github.
+
+
+Example readme content of @angular/core package:
+
+
+Angular
+=======
+
+
+The sources for this package are in the main [Angular](https://github.com/angular/angular) repo. Please file issues and pull requests against that repo.
+
+
+License: MIT
+
+
+
+
+Primary Entry point
+
+
+Primary entry point of the package is the module with module id matching the name of the package (e.g. for "@angular/core" package, the import from the primary entry point looks like: import {Component, ...} from '@angular/core').
+
+
+See also the more recent definition in Angular Glossary.
+
+
+The primary entry point is configured primarily via the package.json in the package root via the following properties:
+
+
+{
+  "name": "@angular/core", 
+ "module": "./fesm2015/core.js", 
+  "es2015": "./fesm2015/core.js", 
+  "esm2015": "./esm2015/core.js",
+  "fesm2015": "./fesm2015/core.js",
+  "main": "bundles/core.umd.js", 
+  "typings": "core.d.ts",
+  "sideEffects": false
+}
+	
+
+
+
+Property Name
+	Purpose
+	module
+	Property used by modern bundlers like Rollup (note on reasoning).
+	es2015
+	Property is used by Angular CLI.
+
+This entry point currently points these tools to fesm2015 (note on reasoning).
+	fesm2015
+	Points to the entry point for the flattened ESM+ES2015 distribution.
+	esm2015
+	Points to the entry point for the unflattened ESM+ES2015 distribution.
+	main
+	Node.js
+	typings
+	typescript compiler (tsc)
+	sideEffects
+	webpack v4+ specific flag to enable advanced optimizations and code splitting (see note)
+	
+
+
+
+
+
+Secondary Entry point
+
+
+Besides the primary entry point, a package can contain zero or more secondary entry points (e.g. @angular/common/http). These contain symbols that we don't want to group together with the symbols in the main entry point for two reasons:
+
+
+                  1. users typically perceive them as distinct from the main group of symbols, and if they were pertinent to the main group of symbols they would have already been there.
+                  2. the symbols in the secondary group are typically only used in a certain scenario (e.g. when writing and running tests). May not include these symbols in the main entry point so we reduce the chance of them being accidentally used incorrectly (e.g. using testing mocks in production code as used in @angular/core/testing).
+
+
+Module ID of an import for a secondary entry point directs a module loader to a directory by the secondary entry point’s name. For instance, “@angular/core/testing” resolves to a directory by the same name, “@angular/core/testing”. This directory contains a package.json file that directs the loader to the correct location for what it’s looking for. This allows us to create multiple entry points within a single package.
+
+
+The contents of the package.json for the secondary entry point can be as simple as:
+
+
+{
+  "name": "@angular/common/http",
+  "main": "../bundles/common-http.umd.js",
+  "fesm2015": "../fesm2015/http.js",
+  "esm2015": "../esm2015/http/http.js",
+  "typings": "./http.d.ts",
+  "module": "../fesm2015/http.js",
+  "es2015": "../fesm2015/http.js",
+  "sideEffects": false
+}
+	
+
+This is an example of @angular/core/testing/package.json that simply redirects @angular/core/testing imports to the appropriate bundle, flat module, or typings.
+
+
+
+
+Compilation and transpilation
+In order to produce all the required build artifacts, we strongly suggest that you use Angular compiler (ngc) to compile your code with the following settings in tsconfig.json:
+
+
+ESM2015:
+
+
+{
+  "compilerOptions": {
+    ...
+    "declaration": true,
+    "module": "es2015",
+    "target": "es2015"
+  },
+  "angularCompilerOptions": {
+    "strictMetadataEmit": true,
+    "skipTemplateCodegen": true,
+    "flatModuleOutFile": "my-ui-lib.js",
+    "flatModuleId": "my-ui-lib",
+  }
+}
+
+
+Optimizations
+
+
+Flattening of ES Modules
+
+
+We strongly recommend that you optimize the build artifacts before publishing your build artifacts to npm, by flattening the ES Modules. This significantly reduces the build time of Angular applications as well as download and parse time of the final application bundle. Please check out the excellent post "The cost of small modules" by Nolan Lawson.
+
+
+Angular compiler has support for generating index ES module files that can then be used to generate flattened modules using tools like Rollup, resulting in a file format we call Flattened ES Module or FESM.
+
+
+FESM is a file format created by flattening all ES Modules accessible from an entry point into a single ES Module. It’s formed by following all imports from a package and copying that code into a single file while preserving all public ES exports and removing all private imports.
+
+
+The shortened name “FESM” (pronounced “phesom”) can have a number after it such as “FESM5” or “FESM2015”. The number refers to the language level of the JavaScript inside the module. So a FESM5 file would be ESM+ES5 (import/export statements and ES5 source code).
+
+
+To generate a flattened ES Module index file, use the following configuration options in your tsconfig.json file:
+
+
+{
+  "compilerOptions": {
+    ...
+    "module": "es2015",
+    "target": "es2015",
+    ...
+  },
+  "angularCompilerOptions": {
+    ...
+    "flatModuleOutFile": "my-ui-lib.js",
+    "flatModuleId": "my-ui-lib"
+  }
+}
+
+
+Once the index file (e.g. my-ui-lib.js) is generated by ngc, bundlers and optimizers like Rollup can be used to produce the flattened ESM file.
+
+
+Note about the defaults in package.json
+As of webpack v4 the flattening of ES modules optimization should not be necessary for webpack users, and in fact theoretically we should be able to get better code-splitting without flattening of modules in webpack, but in practice we still see size regressions when using unflattened modules as input for webpack v4. This is why "module" and "es2015" package.json entries still point to fesm files. We are investigating this issue and expect that we'll switch the "module" and "es2015" package.json entry points to unflattened files when the size regression issue is resolved.
+
+
+Inlining of templates and stylesheets
+
+
+Component libraries are typically implemented using stylesheets and html templates stored in separate files. While it's not required, we suggest that component authors inline the templates and stylesheets into their FESM files as well as *.metadata.json files by replacing the styleUrls and templateUrl with styles and template metadata properties respectively. This simplifies consumption of the components by application developers.
+
+
+webpack v4 "sideEffects": false
+
+
+As of webpack v4, packages that contain a special property called "sideEffects" set to false in their package.json, will be processed by webpack more aggressively than those that don't. The end result of these optimizations should be smaller bundle size and better code distribution in bundle chunks after code-splitting. This optimization can break your code if it contains non-local side-effects - this is however not common in Angular applications and it's usually a sign of bad design. Our recommendation is for all packages to claim the side-effect free status by setting the sideEffects property to false, and that developers follow the Angular Style Guide which naturally results in code without non-local side-effects.
+More info: webpack docs on side-effects
+ 
+ES2015 Language Level
+
+
+ES2015 Language level is now the default language level that is consumed by Angular CLI and other tooling.
+
+
+If applications still need to support ES5 browsers, then Angular CLI can downlevel the bundle to ES5 at application build time via differential loading and builds feature.
+
+
+
+
+d.ts bundling / type definition flattening
+
+
+As of APF v8 we now prefer to run the .d.ts bundler tool from https://api-extractor.com/ so that the entire API appears in a single file.
+
+
+In prior APF versions each entry point would have a `src` directory next to the .d.ts entry point and this directory contained individual d.ts files matching the structure of the original source code. While this distribution format is still allowed and supported, it is highly discouraged because it confuses tools like IDEs that then offer incorrect autocompletion, and allows users to depend on deep-import paths which are typically not considered to be public API of a library or a package.
+
+
+Tslib
+
+
+As of APF v10, we recommend adding tslib as a direct dependency of your primary entry-point, this is because the tslib version is tied to the TypeScript version used to compile your library.
+
+
+Examples
+                  * @angular/core package
+                  * @angular/material package
+                  * jasonaden/simple-ui-lib
+                  * filipesilva/angular-quickstart-lib
+
+
+Definition of Terms
+
+
+The following terms are used throughout this document very intentionally. In this section we define all of them to provide additional clarity.
+
+
+Package - the smallest set of files that are published to NPM and installed together, for example @angular/core. This package includes a manifest called package.json, compiled source code, typescript definition files, source maps, metadata, etc. The package is installed with npm install @angular/core.
+Symbol - a class, function, constant or variable contained in a module and optionally made visible to the external world via a module export.
+Module - Short for ECMAScript Modules. A file containing statements that import and export symbols. This is identical to the definition of modules in the ECMAScript spec.
+ESM - short for ECMAScript Modules (see above).
+FESM - short for Flattened ES Modules and consists of a file format created by flattening all ES Modules accessible from an entry point into a single ES Module.
+Module ID - the identifier of a module used in the import statements, e.g. "@angular/core". The ID often maps directly to a path on the filesystem, but this is not always the case due to various module resolution strategies.
+Module Resolution Strategy - algorithm used to convert Module IDs to paths on the filesystem. Node.js has one that is well specified and widely used, TypeScript supports several module resolution strategies, Closure has yet another strategy.
+Module Format - specification of the module syntax that covers at minimum the syntax for the importing and exporting from a file. Common module formats are CommonJS (CJS, typically used for Node.js applications) or ECMAScript Modules (ESM). The module format indicates only the packaging of the individual modules, but not the JavaScript language features used to make up the module content. Because of this, the Angular team often uses the language level specifier as a suffix to the module format, e.g. ESM+ES5 specifies that the module is in ESM format and contains code down-leveled to ES5. Other commonly used combos: ESM+ES2015, CJS+ES5, and CJS+ES2015.
+Bundle - an artifact in the form of a single JS file, produced by a build tool, e.g. WebPack or Rollup, that contains symbols originating in one or more modules. Bundles are a browser-specific workaround that reduce network strain that would be caused if browsers were to start downloading hundreds if not tens of thousands of files. Node.js typically doesn't use bundles. Common bundle formats are UMD and System.register.
+Language Level - The language of the code (ES5 or ES2015). Independent of the module format.
+Entry Point - a module intended to be imported by the user. It is referenced by a unique module ID and exports the public API referenced by that module ID. An example is @angular/core or @angular/core/testing. Both entry points exist in the @angular/core package, but they export different symbols. A package can have many entry points.
+Deep Import - process of retrieving symbols from modules that are not Entry Points. These module IDs are usually considered to be private APIs that can change over the lifetime of the project or while the bundle for the given package is being created.
+Top-Level Import - an import coming from an entry point. The available top-level imports are what define the public API and are exposed in “@angular/name” modules, such as @angular/core  or @angular/common.
+Tree-shaking - process of identifying and removing code not used by an application - also known as dead code elimination. This is a global optimization performed at the application level using tools like Rollup, Closure Compiler, or Uglify.
+AOT Compiler - the Ahead of Time Compiler for Angular.
+Flattened Type Definitions - the bundled TypeScript definitions generated from api-extractor.
